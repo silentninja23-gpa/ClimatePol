@@ -1,0 +1,1424 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ClimatePol : Climate Change & Politics Real-Time Intelligence</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            800: '#166534',
+                            900: '#14532d',
+                        },
+                        darkbg: '#0f172a',
+                        darkcard: '#1e293b',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        serif: ['Playfair Display', 'serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.6);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+        .pulse-dot {
+            animation: pulse-ring 1.5s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+        }
+        @keyframes pulse-ring {
+            0% { transform: scale(0.95); opacity: 0.8; }
+            50% { transform: scale(1.15); opacity: 1; }
+            100% { transform: scale(0.95); opacity: 0.8; }
+        }
+        .article-body p {
+            margin-bottom: 1.25rem;
+            line-height: 1.8;
+        }
+        /* Custom Leaflet Dark Mode Tiles Filter */
+        .dark .leaflet-layer,
+        .dark .leaflet-control-zoom,
+        .dark .leaflet-control-attribution {
+            filter: brightness(0.8) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3);
+        }
+    </style>
+</head>
+<body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans transition-colors duration-300 min-h-screen flex flex-col">
+
+    <!-- TOP ANNOUNCEMENT & REAL-TIME TICKER HEADER -->
+    <div class="bg-emerald-900 text-emerald-100 text-xs px-4 py-2 border-b border-emerald-800 flex flex-wrap items-center justify-between gap-2">
+        <div class="flex items-center gap-3 overflow-hidden w-full md:w-auto">
+            <span class="bg-emerald-500 text-slate-950 text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider flex items-center gap-1 shrink-0">
+                <span class="w-2 h-2 rounded-full bg-slate-900 pulse-dot"></span> Live Wire
+            </span>
+            <div id="live-ticker-text" class="truncate font-medium text-emerald-200 transition-all duration-500 cursor-pointer hover:underline" onclick="openTickerArticle()">
+                Loading latest political climate feeds...
+            </div>
+        </div>
+        <div class="flex items-center gap-4 text-xs shrink-0 ml-auto md:ml-0">
+            <span id="ticker-timestamp" class="text-emerald-300 font-mono hidden sm:inline">11:02 AM EDT</span>
+            <div class="flex items-center gap-1 bg-emerald-950 px-2 py-0.5 rounded border border-emerald-800">
+                <button id="toggle-feed-btn" title="Pause Feed" class="hover:text-white transition px-1"><i class="fa-solid fa-pause"></i></button>
+                <button id="refresh-feed-btn" title="Force Refresh Feed" class="hover:text-white transition px-1 ml-1"><i class="fa-solid fa-rotate-right"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN NAVIGATION -->
+    <header class="sticky top-0 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16 gap-4">
+                
+                <!-- Logo & Brand -->
+                <div class="flex items-center gap-3 cursor-pointer" onclick="switchTab('feed')">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 via-teal-500 to-cyan-500 flex items-center justify-center text-white shadow-lg shadow-emerald-500/20">
+                        <i class="fa-solid fa-earth-americas text-xl"></i>
+                    </div>
+                    <div>
+                        <span class="font-serif font-extrabold text-xl tracking-tight bg-gradient-to-r from-slate-900 via-slate-800 to-emerald-600 dark:from-white dark:via-slate-200 dark:to-emerald-400 bg-clip-text text-transparent">ClimatePol</span>
+                        <span class="block text-[10px] uppercase tracking-widest text-slate-500 dark:text-slate-400 font-semibold -mt-1">Policy & Partisan Pulse</span>
+                    </div>
+                </div>
+
+                <!-- Navigation Tabs -->
+                <nav class="hidden md:flex items-center gap-1 bg-slate-100 dark:bg-slate-800/60 p-1 rounded-xl border border-slate-200 dark:border-slate-700/50">
+                    <button onclick="switchTab('feed')" id="nav-feed" class="nav-btn px-4 py-1.5 rounded-lg text-sm font-medium transition-all text-emerald-600 dark:text-emerald-400 bg-white dark:bg-slate-900 shadow-sm">
+                        <i class="fa-solid fa-newspaper mr-1.5"></i>Live Intelligence
+                    </button>
+                    <button onclick="switchTab('map')" id="nav-map" class="nav-btn px-4 py-1.5 rounded-lg text-sm font-medium transition-all text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white">
+                        <i class="fa-solid fa-map-location-dot mr-1.5"></i>Battleground Map
+                    </button>
+                    <button onclick="switchTab('analytics')" id="nav-analytics" class="nav-btn px-4 py-1.5 rounded-lg text-sm font-medium transition-all text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white">
+                        <i class="fa-solid fa-chart-column mr-1.5"></i>Data & Sentiment
+                    </button>
+                    <button onclick="switchTab('library')" id="nav-library" class="nav-btn px-4 py-1.5 rounded-lg text-sm font-medium transition-all text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white">
+                        <i class="fa-solid fa-book-open mr-1.5"></i>Articles & Analysis
+                    </button>
+                    <button onclick="switchTab('saved')" id="nav-saved" class="nav-btn px-4 py-1.5 rounded-lg text-sm font-medium transition-all text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white relative">
+                        <i class="fa-solid fa-bookmark mr-1.5"></i>Bookmarks
+                        <span id="saved-count-badge" class="ml-1 bg-emerald-500 text-slate-950 text-[10px] font-bold px-1.5 py-0.2 rounded-full hidden">0</span>
+                    </button>
+                </nav>
+
+                <!-- Search & Actions -->
+                <div class="flex items-center gap-2">
+                    <div class="relative hidden sm:block w-44 lg:w-60">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-sm"></i>
+                        <input type="text" id="global-search" placeholder="Search news & articles..." 
+                            class="w-full pl-9 pr-3 py-1.5 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-800 dark:text-slate-200 placeholder-slate-400">
+                    </div>
+
+                    <!-- Submit Modal Trigger -->
+                    <button onclick="openModal('submit-modal')" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shadow-md hover:shadow-emerald-500/20 transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-pen-to-square"></i> <span class="hidden sm:inline">Submit Analysis</span>
+                    </button>
+
+                    <!-- Theme Toggle -->
+                    <button id="theme-toggle" class="p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition" title="Toggle Theme">
+                        <i class="fa-solid fa-moon dark:hidden text-lg"></i>
+                        <i class="fa-solid fa-sun hidden dark:inline text-lg text-amber-400"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mobile Nav Bar -->
+        <div class="md:hidden flex border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 px-1 py-1 justify-around text-xs">
+            <button onclick="switchTab('feed')" id="mobile-nav-feed" class="mobile-nav-btn py-1.5 px-2 font-medium text-emerald-600 dark:text-emerald-400">
+                <i class="fa-solid fa-newspaper block text-center mb-0.5"></i>Live
+            </button>
+            <button onclick="switchTab('map')" id="mobile-nav-map" class="mobile-nav-btn py-1.5 px-2 font-medium text-slate-600 dark:text-slate-400">
+                <i class="fa-solid fa-map-location-dot block text-center mb-0.5"></i>Map
+            </button>
+            <button onclick="switchTab('analytics')" id="mobile-nav-analytics" class="mobile-nav-btn py-1.5 px-2 font-medium text-slate-600 dark:text-slate-400">
+                <i class="fa-solid fa-chart-column block text-center mb-0.5"></i>Data
+            </button>
+            <button onclick="switchTab('library')" id="mobile-nav-library" class="mobile-nav-btn py-1.5 px-2 font-medium text-slate-600 dark:text-slate-400">
+                <i class="fa-solid fa-book-open block text-center mb-0.5"></i>Articles
+            </button>
+            <button onclick="switchTab('saved')" id="mobile-nav-saved" class="mobile-nav-btn py-1.5 px-2 font-medium text-slate-600 dark:text-slate-400">
+                <i class="fa-solid fa-bookmark block text-center mb-0.5"></i>Saved
+            </button>
+        </div>
+    </header>
+
+    <!-- CONTENT WRAPPER -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+        <!-- ================= TAB 1: LIVE INTELLIGENCE FEED ================= -->
+        <section id="tab-feed" class="tab-content space-y-6">
+            
+            <!-- Hero Stats / Pulse Indicators -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                    <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs font-semibold mb-1">
+                        <span>POLITICAL PARALYSIS INDEX</span>
+                        <i class="fa-solid fa-scale-unbalanced text-amber-500"></i>
+                    </div>
+                    <div class="text-2xl font-bold font-mono text-amber-500" id="stat-paralysis">74.2%</div>
+                    <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1"><span class="text-rose-500 font-semibold"><i class="fa-solid fa-arrow-up"></i> +2.1%</span> this session</p>
+                </div>
+
+                <div class="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                    <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs font-semibold mb-1">
+                        <span>MEDIA POLARIZATION</span>
+                        <i class="fa-solid fa-tv text-indigo-500"></i>
+                    </div>
+                    <div class="text-2xl font-bold font-mono text-indigo-500" id="stat-polarization">8.8/10</div>
+                    <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1">High Partisan Framing</p>
+                </div>
+
+                <div class="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                    <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs font-semibold mb-1">
+                        <span>ACTIVE CLIMATE BILLS</span>
+                        <i class="fa-solid fa-file-contract text-emerald-500"></i>
+                    </div>
+                    <div class="text-2xl font-bold font-mono text-emerald-500">14</div>
+                    <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1">3 Pending Congressional Votes</p>
+                </div>
+
+                <div class="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                    <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs font-semibold mb-1">
+                        <span>PUBLIC SUPPORT</span>
+                        <i class="fa-solid fa-users text-teal-500"></i>
+                    </div>
+                    <div class="text-2xl font-bold font-mono text-teal-500" id="stat-support">68%</div>
+                    <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Bipartisan Supermajority Consensus</p>
+                </div>
+            </div>
+
+            <!-- Main Layout: Live Wire Stream + Hot Topic Sidebar -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                
+                <!-- Left 2 Columns: Stream & Breaking Wire -->
+                <div class="lg:col-span-2 space-y-4">
+                    
+                    <!-- Filters & Category Controls -->
+                    <div class="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3 shadow-sm">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400"><i class="fa-solid fa-filter mr-1"></i> Topic Filter:</span>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-1.5" id="topic-filters">
+                            <button onclick="filterFeed('All')" class="feed-filter-btn px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-500 text-slate-950 transition">All</button>
+                            <button onclick="filterFeed('Policy & Legislation')" class="feed-filter-btn px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition">Policy</button>
+                            <button onclick="filterFeed('Political Debates')" class="feed-filter-btn px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition">Debates</button>
+                            <button onclick="filterFeed('Media Framing')" class="feed-filter-btn px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition">Media</button>
+                            <button onclick="filterFeed('Global Diplomacy')" class="feed-filter-btn px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition">Diplomacy</button>
+                        </div>
+                    </div>
+
+                    <!-- Live Feed Container -->
+                    <div id="live-feed-container" class="space-y-3 min-h-[400px]">
+                        <!-- Feed Items Injected dynamically -->
+                    </div>
+                </div>
+
+                <!-- Right Column: Interactive Sidebar Widgets -->
+                <div class="space-y-6">
+                    
+                    <!-- Live Sentiment Pulse / Polling Widget -->
+                    <div class="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden">
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="font-serif font-bold text-base text-slate-900 dark:text-white flex items-center gap-2">
+                                <i class="fa-solid fa-square-poll-vertical text-emerald-500"></i> Public Opinion Poll
+                            </h3>
+                            <span class="text-[10px] bg-rose-500/10 text-rose-500 font-bold px-2 py-0.5 rounded border border-rose-500/20">LIVE PULSE</span>
+                        </div>
+                        <p class="text-xs text-slate-600 dark:text-slate-300 mb-4 font-medium" id="poll-question">
+                            "Should carbon emissions tax revenue be directly redistributed to lower-income households as a climate dividend?"
+                        </p>
+                        
+                        <div id="poll-options-container" class="space-y-2">
+                            <button onclick="votePoll('yes')" class="w-full text-left p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-emerald-500 dark:hover:border-emerald-500 bg-slate-50 dark:bg-slate-800/50 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/30 transition text-xs flex justify-between items-center group">
+                                <span class="font-medium group-hover:text-emerald-600 dark:group-hover:text-emerald-400">Yes, imperative social equity.</span>
+                                <span class="text-slate-400 font-mono" id="poll-count-yes">58%</span>
+                            </button>
+                            <button onclick="votePoll('no')" class="w-full text-left p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-emerald-500 dark:hover:border-emerald-500 bg-slate-50 dark:bg-slate-800/50 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/30 transition text-xs flex justify-between items-center group">
+                                <span class="font-medium group-hover:text-emerald-600 dark:group-hover:text-emerald-400">No, reinvest exclusively in clean tech.</span>
+                                <span class="text-slate-400 font-mono" id="poll-count-no">29%</span>
+                            </button>
+                            <button onclick="votePoll('undecided')" class="w-full text-left p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-emerald-500 dark:hover:border-emerald-500 bg-slate-50 dark:bg-slate-800/50 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/30 transition text-xs flex justify-between items-center group">
+                                <span class="font-medium group-hover:text-emerald-600 dark:group-hover:text-emerald-400">Undecided / Neutral</span>
+                                <span class="text-slate-400 font-mono" id="poll-count-undecided">13%</span>
+                            </button>
+                        </div>
+                        <div id="poll-voted-msg" class="hidden mt-3 text-center text-xs text-emerald-500 font-medium">
+                            <i class="fa-solid fa-circle-check mr-1"></i> Your vote has been recorded!
+                        </div>
+                    </div>
+
+                    <!-- Policy Tracker Matrix -->
+                    <div class="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                        <h3 class="font-serif font-bold text-base text-slate-900 dark:text-white mb-3 flex items-center gap-2">
+                            <i class="fa-solid fa-gavel text-amber-500"></i> Key Legislation Gridlock
+                        </h3>
+                        <div class="space-y-3">
+                            <div class="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-lg border border-slate-200 dark:border-slate-700/60">
+                                <div class="flex items-center justify-between text-xs mb-1">
+                                    <span class="font-bold text-slate-800 dark:text-slate-200">Clean Energy Grid Act 2026</span>
+                                    <span class="bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[10px] font-bold px-1.5 py-0.5 rounded">STUCK IN SENATE</span>
+                                </div>
+                                <div class="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-1.5 my-1.5 overflow-hidden">
+                                    <div class="bg-amber-500 h-1.5 rounded-full" style="width: 48%"></div>
+                                </div>
+                                <span class="text-[10px] text-slate-500 dark:text-slate-400">Partisan Split: 49 Yea - 48 Nay (2 Abstained)</span>
+                            </div>
+
+                            <div class="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-lg border border-slate-200 dark:border-slate-700/60">
+                                <div class="flex items-center justify-between text-xs mb-1">
+                                    <span class="font-bold text-slate-800 dark:text-slate-200">Carbon Border Tariff Accord</span>
+                                    <span class="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold px-1.5 py-0.5 rounded">PASSED HOUSE</span>
+                                </div>
+                                <div class="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-1.5 my-1.5 overflow-hidden">
+                                    <div class="bg-emerald-500 h-1.5 rounded-full" style="width: 82%"></div>
+                                </div>
+                                <span class="text-[10px] text-slate-500 dark:text-slate-400">Bipartisan Coalition: Moderate Support</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Simulator Speed Control -->
+                    <div class="bg-slate-100 dark:bg-slate-900/60 p-4 rounded-xl border border-slate-200 dark:border-slate-800 text-xs space-y-2">
+                        <div class="flex justify-between items-center text-slate-600 dark:text-slate-400 font-semibold">
+                            <span><i class="fa-solid fa-sliders mr-1"></i> Live Stream Speed</span>
+                            <span id="speed-label" class="font-mono text-emerald-500">5s interval</span>
+                        </div>
+                        <input type="range" id="speed-slider" min="2" max="15" value="5" class="w-full accent-emerald-500 cursor-pointer">
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= TAB 2: INTERACTIVE MAP ================= -->
+        <section id="tab-map" class="tab-content hidden space-y-6">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-4">
+                <div>
+                    <h2 class="font-serif font-bold text-2xl text-slate-900 dark:text-white">Global Policy & Climate Dispute Map</h2>
+                    <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Interactive GIS telemetry tracking legislative battlegrounds, carbon tariffs, and regulatory friction.</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-semibold text-slate-500">Filter Hotspots:</span>
+                    <select id="map-filter-select" onchange="filterMapMarkers(this.value)" class="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs px-3 py-1.5 focus:outline-none">
+                        <option value="all">All Battlegrounds</option>
+                        <option value="Policy">Policy & Legislation</option>
+                        <option value="Carbon">Carbon Border Zones</option>
+                        <option value="Protest">Activism & Protest</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Map Container & Sidebar -->
+            <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                <div class="lg:col-span-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-2 shadow-sm">
+                    <div id="leaflet-map" class="w-full h-[550px] rounded-lg z-10"></div>
+                </div>
+
+                <!-- Map Info Sidebar -->
+                <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center gap-2 text-emerald-500 font-bold text-xs uppercase tracking-wider mb-2">
+                            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> GIS Intelligence
+                        </div>
+                        <h3 id="map-sidebar-title" class="font-serif font-bold text-lg text-slate-900 dark:text-white mb-2">Select a Hotspot</h3>
+                        <p id="map-sidebar-desc" class="text-xs text-slate-600 dark:text-slate-400 leading-relaxed mb-4">
+                            Click any marker on the global map to view detailed legislative friction scores, diplomatic stakes, and linked deep-dive analysis.
+                        </p>
+                    </div>
+                    <div id="map-sidebar-action" class="pt-4 border-t border-slate-100 dark:border-slate-800 hidden">
+                        <button id="map-sidebar-btn" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold py-2.5 rounded-lg transition shadow-md">
+                            Read Associated Analysis →
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= TAB 3: DATA & ANALYTICS ================= -->
+        <section id="tab-analytics" class="tab-content hidden space-y-6">
+            <div class="border-b border-slate-200 dark:border-slate-800 pb-4">
+                <h2 class="font-serif font-bold text-2xl text-slate-900 dark:text-white">Political & Media Climate Analytics</h2>
+                <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Quantitative insights on partisan divide, media framing, and policy alignment.</p>
+            </div>
+
+            <!-- Charts Grid -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                
+                <!-- Chart 1: Partisan Approval Over Time -->
+                <div class="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h3 class="font-serif font-bold text-lg text-slate-900 dark:text-white">Partisan Climate Policy Approval</h3>
+                            <p class="text-xs text-slate-500 dark:text-slate-400">Public sentiment alignment on major climate reform (2018–2026)</p>
+                        </div>
+                        <span class="text-xs font-mono bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2 py-1 rounded">Annual Trend</span>
+                    </div>
+                    <div class="relative h-64">
+                        <canvas id="chart-partisan"></canvas>
+                    </div>
+                </div>
+
+                <!-- Chart 2: Media Framing Analysis -->
+                <div class="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h3 class="font-serif font-bold text-lg text-slate-900 dark:text-white">Media Framing vs Focus Area</h3>
+                            <p class="text-xs text-slate-500 dark:text-slate-400">Distribution of political framing in national news outlets</p>
+                        </div>
+                        <span class="text-xs font-mono bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2 py-1 rounded">Media Audit</span>
+                    </div>
+                    <div class="relative h-64">
+                        <canvas id="chart-media"></canvas>
+                    </div>
+                </div>
+
+                <!-- Chart 3: Global Carbon Target Alignment -->
+                <div class="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm lg:col-span-2">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h3 class="font-serif font-bold text-lg text-slate-900 dark:text-white">Global Carbon Commitments vs Legislative Execution</h3>
+                            <p class="text-xs text-slate-500 dark:text-slate-400">Pledged reduction targets vs Enacted statutory policies by G20 nations</p>
+                        </div>
+                    </div>
+                    <div class="relative h-72">
+                        <canvas id="chart-global"></canvas>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- ================= TAB 4: ARTICLES & ANALYSIS LIBRARY ================= -->
+        <section id="tab-library" class="tab-content hidden space-y-6">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-4">
+                <div>
+                    <h2 class="font-serif font-bold text-2xl text-slate-900 dark:text-white">Curated Editorial Deep-Dives</h2>
+                    <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Investigative long-form essays examining political polarization and environmental action.</p>
+                </div>
+                
+                <!-- Category Filter Buttons -->
+                <div class="flex flex-wrap items-center gap-1.5" id="article-filters">
+                    <button onclick="filterArticles('All')" class="art-filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-500 text-slate-950 transition">All</button>
+                    <button onclick="filterArticles('Legislation')" class="art-filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition">Legislation</button>
+                    <button onclick="filterArticles('Media')" class="art-filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition">Media & Bias</button>
+                    <button onclick="filterArticles('Economics')" class="art-filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition">Economics</button>
+                    <button onclick="filterArticles('Activism')" class="art-filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition">Activism</button>
+                </div>
+            </div>
+
+            <!-- Articles Grid -->
+            <div id="articles-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Injected via JavaScript -->
+            </div>
+        </section>
+
+        <!-- ================= TAB 5: SAVED BOOKMARKS ================= -->
+        <section id="tab-saved" class="tab-content hidden space-y-6">
+            <div class="border-b border-slate-200 dark:border-slate-800 pb-4">
+                <h2 class="font-serif font-bold text-2xl text-slate-900 dark:text-white">Your Saved Articles</h2>
+                <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Bookmarked analyses and reference reading for offline review.</p>
+            </div>
+
+            <div id="saved-articles-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Dynamic Content -->
+            </div>
+        </section>
+
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="mt-auto bg-slate-900 text-slate-400 text-xs border-t border-slate-800 py-8">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+                <div class="w-7 h-7 rounded-lg bg-emerald-600 flex items-center justify-center text-white font-bold">
+                    <i class="fa-solid fa-earth-americas"></i>
+                </div>
+                <span class="font-serif font-bold text-slate-200 text-sm">ClimatePol Intelligence Hub</span>
+            </div>
+            <p>© 2026 ClimatePol Analytics Network. All real-time telemetry simulated for analytical demo.</p>
+            <div class="flex gap-4 text-slate-400">
+                <a href="#" class="hover:text-emerald-400 transition">Privacy Policy</a>
+                <a href="#" class="hover:text-emerald-400 transition">Methodology</a>
+                <a href="#" class="hover:text-emerald-400 transition">API Documentation</a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- ================= MODALS & ARTICLE READER OVERLAY ================= -->
+
+    <!-- ARTICLE READER MODAL -->
+    <div id="article-reader-modal" class="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md hidden overflow-y-auto p-4 sm:p-6 lg:p-8 flex justify-center items-center">
+        <div id="reader-container-box" class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-4xl w-full my-auto shadow-2xl overflow-hidden flex flex-col max-h-[92vh] transition-colors">
+            
+            <!-- Modal Reader Header Toolbar -->
+            <div class="p-4 sm:p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center gap-4 bg-slate-50 dark:bg-slate-900/50">
+                <div class="flex items-center gap-2 flex-wrap">
+                    <button onclick="setReaderTheme('light')" class="px-2.5 py-1 rounded border border-slate-300 dark:border-slate-700 text-xs font-semibold bg-white text-slate-800 hover:bg-slate-100 transition"><i class="fa-solid fa-sun mr-1"></i> Light</button>
+                    <button onclick="setReaderTheme('sepia')" class="px-2.5 py-1 rounded border border-amber-300 text-xs font-semibold bg-[#fbf0d9] text-amber-900 hover:bg-[#f5e6c4] transition"><i class="fa-solid fa-book mr-1"></i> Sepia</button>
+                    <button onclick="setReaderTheme('dark')" class="px-2.5 py-1 rounded border border-slate-700 text-xs font-semibold bg-slate-800 text-slate-200 hover:bg-slate-700 transition"><i class="fa-solid fa-moon mr-1"></i> Dark</button>
+                    <span class="text-slate-300 dark:text-slate-700">|</span>
+                    <button onclick="adjustReaderFont(-1)" class="px-2 py-1 rounded border border-slate-300 dark:border-slate-700 text-xs font-bold">A-</button>
+                    <button onclick="adjustReaderFont(1)" class="px-2 py-1 rounded border border-slate-300 dark:border-slate-700 text-xs font-bold">A+</button>
+                </div>
+                
+                <div class="flex items-center gap-2">
+                    <button id="reader-bookmark-btn" onclick="toggleBookmarkCurrent()" class="p-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition" title="Save Article">
+                        <i class="fa-regular fa-bookmark text-base"></i>
+                    </button>
+                    <button onclick="printReaderArticle()" class="p-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition" title="Print / Export">
+                        <i class="fa-solid fa-print text-base"></i>
+                    </button>
+                    <button onclick="closeModal('article-reader-modal')" class="p-2 rounded-xl bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition">
+                        <i class="fa-solid fa-xmark text-lg"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Modal Article Header & Metadata -->
+            <div class="px-6 sm:px-8 pt-6 pb-4 border-b border-slate-100 dark:border-slate-800/60">
+                <div class="flex flex-wrap items-center gap-2 mb-2">
+                    <span id="reader-category" class="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-bold px-2.5 py-0.5 rounded-full border border-emerald-500/20">Category</span>
+                    <span id="reader-bias" class="text-xs font-bold px-2.5 py-0.5 rounded-full">Perspective</span>
+                    <span id="reader-readtime" class="text-xs text-slate-400"><i class="fa-regular fa-clock mr-1"></i> 5 min read</span>
+                </div>
+                <h1 id="reader-title" class="font-serif font-bold text-2xl sm:text-3xl text-slate-900 dark:text-white leading-tight mb-2">Article Title Here</h1>
+                <div class="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-2">
+                    <span id="reader-author" class="font-semibold text-slate-700 dark:text-slate-300">Author Name</span>
+                    <span>•</span>
+                    <span id="reader-date">Oct 15, 2026</span>
+                </div>
+            </div>
+
+            <!-- Key Takeaways Bar -->
+            <div class="mx-6 sm:mx-8 my-3 bg-emerald-950/20 border border-emerald-500/20 rounded-xl px-4 py-3 text-xs text-emerald-800 dark:text-emerald-300 flex items-start gap-3">
+                <i class="fa-solid fa-lightbulb text-emerald-500 text-base mt-0.5"></i>
+                <div>
+                    <span class="font-bold uppercase tracking-wider block mb-0.5">Key Insight:</span>
+                    <p id="reader-key-takeaway">Insight summary regarding partisan dynamics in this climate topic.</p>
+                </div>
+            </div>
+
+            <!-- Article Content Scrollable Area -->
+            <div id="reader-body" class="px-6 sm:px-8 py-4 overflow-y-auto space-y-4 text-slate-700 dark:text-slate-300 text-base leading-relaxed article-body font-sans">
+                <!-- Content dynamically populated -->
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="p-4 bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex justify-between items-center text-xs text-slate-500">
+                <span>ClimatePol Reader Annotation Mode Active</span>
+                <button onclick="closeModal('article-reader-modal')" class="px-4 py-2 bg-slate-800 dark:bg-slate-700 text-white rounded-lg hover:bg-slate-700 transition">Close Article</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SUBMIT ANALYSIS MODAL -->
+    <div id="submit-modal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md hidden p-4 flex justify-center items-center">
+        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+            <div class="flex justify-between items-center border-b border-slate-200 dark:border-slate-800 pb-3">
+                <h3 class="font-serif font-bold text-lg text-slate-900 dark:text-white flex items-center gap-2">
+                    <i class="fa-solid fa-pen-nib text-emerald-500"></i> Submit Political Climate Analysis
+                </h3>
+                <button onclick="closeModal('submit-modal')" class="text-slate-400 hover:text-slate-600 dark:hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            
+            <form id="submit-article-form" onsubmit="handleFormSubmit(event)" class="space-y-3 text-xs">
+                <div>
+                    <label class="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Article Title</label>
+                    <input type="text" required placeholder="e.g. The Clean Energy Permitting Reform Dilemma" class="w-full p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Category</label>
+                        <select class="w-full p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                            <option>Legislation</option>
+                            <option>Media</option>
+                            <option>Economics</option>
+                            <option>Activism</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Partisan Lens</label>
+                        <select class="w-full p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                            <option>Bipartisan Analysis</option>
+                            <option>Scientific Consensus</option>
+                            <option>Left-Leaning Policy</option>
+                            <option>Right-Leaning Free Market</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label class="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Key Executive Summary / Insight</label>
+                    <input type="text" required placeholder="Brief 1-sentence takeaways..." class="w-full p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                </div>
+                <div>
+                    <label class="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Full Text / Essay Body</label>
+                    <textarea rows="4" required placeholder="Paste full investigative analysis or thesis here..." class="w-full p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"></textarea>
+                </div>
+                <div class="pt-2 flex justify-end gap-2">
+                    <button type="button" onclick="closeModal('submit-modal')" class="px-4 py-2 rounded-lg bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300 transition">Cancel</button>
+                    <button type="submit" class="px-4 py-2 rounded-lg bg-emerald-600 text-white font-semibold hover:bg-emerald-500 transition shadow-md">Publish Analysis</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        // ================= APPLICATION STATE =================
+        const state = {
+            activeTab: 'feed',
+            feedPaused: false,
+            feedIntervalTime: 5000,
+            feedIntervalId: null,
+            activeFeedFilter: 'All',
+            activeArticleFilter: 'All',
+            savedArticleIds: new Set([1, 3]), // Default saved articles
+            currentReadingArticleId: null,
+            searchQuery: '',
+            
+            // Polling State
+            pollVotes: { yes: 58, no: 29, undecided: 13 },
+            userVoted: false,
+            
+            // Map State
+            leafletMap: null,
+            mapMarkersLayer: null
+        };
+
+        // ================= SAMPLE DATASETS =================
+        const liveWirePool = [
+            {
+                id: 'feed-1',
+                category: 'Policy & Legislation',
+                title: 'Senate Energy Committee deadlock on Permitting Reform Bill after 14-hour session',
+                source: 'Congressional Intelligence',
+                bias: 'Center / Neutral',
+                timestamp: 'Just now',
+                summary: 'Bipartisan negotiators clash over environmental review deadlines vs fossil fuel infrastructure exemptions.',
+                content: '<p>Negotiators on the Senate Energy and Natural Resources Committee reached an impasse late Thursday over proposed statutory timelines for environmental impact statements. While moderate senators pushed for streamlined permitting to accelerate transmission lines for wind and solar projects, progressive and conservative factions raised objections regarding judicial review limits.</p><p>The legislation remains a critical battleground for grid modernization.</p>'
+            },
+            {
+                id: 'feed-2',
+                category: 'Media Framing',
+                title: 'Framing Audit: Cable networks show 84% disparity in extreme weather attribution coverage',
+                source: 'Media Matters Monitor',
+                bias: 'Analytical',
+                timestamp: '2m ago',
+                summary: 'Liberal networks emphasize anthropogenic climate link while conservative commentary highlights grid reliability costs.',
+                content: '<p>A comprehensive audit of 5,000 news segments during recent extreme weather events reveals a stark partisan split in linguistic framing. Progressive networks explicitly link meteorological anomalies to global carbon emissions within the first 60 seconds of broadcast, whereas conservative outlets focus primarily on local municipal disaster preparedness and energy pricing spikes.</p>'
+            },
+            {
+                id: 'feed-3',
+                category: 'Political Debates',
+                title: 'Bipartisan House Coalition introduces landmark Carbon Tariff on imported heavy industrial manufacturing',
+                source: 'Capitol Hill Dispatch',
+                bias: 'Bipartisan',
+                timestamp: '4m ago',
+                summary: 'The measure seeks to protect domestic steel and aluminum producers while curbing foreign emissions.',
+                content: '<p>In a rare display of cross-aisle cooperation, a bipartisan group of representatives introduced the Clean Competition Act, establishing a border carbon adjustment on carbon-intensive imports such as steel, cement, and aluminum. Proponents argue this creates a level playing field for domestic manufacturers adhering to strict environmental standards.</p>'
+            },
+            {
+                id: 'feed-4',
+                category: 'Global Diplomacy',
+                title: 'COP31 Delegates signal friction over loss-and-damage climate finance allocation frameworks',
+                source: 'Global Envoy Digest',
+                bias: 'International Consensus',
+                timestamp: '7m ago',
+                summary: 'Developing nations demand direct grant mechanisms, while Western blocs advocate for private-equity backed loans.',
+                content: '<p>Diplomatic negotiations at COP31 hit turbulence over the operational rules for the international loss-and-damage fund. Developing economies argue that loans exacerbate debt distress, insisting on direct non-repayable grants, while donor nations face domestic legislative constraints on foreign aid budgets.</p>'
+            },
+            {
+                id: 'feed-5',
+                category: 'Policy & Legislation',
+                title: 'State Governors form 12-state Clean Grid Alliance to bypass federal regulatory inertia',
+                source: 'State Policy Watch',
+                bias: 'Progressive Policy',
+                timestamp: '11m ago',
+                summary: 'Regional pact aims to accelerate cross-border high-voltage transmission lines despite federal court challenges.',
+                content: '<p>Frustrated by inter-state transmission blockages, a coalition of 12 state governors announced the formation of the Interstate Clean Grid Alliance, committing to harmonize regional transmission siting authority and share grid reliability reserves.</p>'
+            },
+            {
+                id: 'feed-6',
+                category: 'Political Debates',
+                title: 'Poll: 64% of Conservative Youth favor increased solar tax credits despite party platform opposition',
+                source: 'Public Opinion Research',
+                bias: 'Non-partisan Data',
+                timestamp: '15m ago',
+                summary: 'Demographic shifts reveal growing generational divide inside conservative voter bases regarding renewable subsidies.',
+                content: '<p>New survey data indicates that among registered voters under 35 identifying as conservative, 64% support federal tax credits for residential and commercial solar installations, highlighting a generational divergence from traditional party orthodoxies.</p>'
+            }
+        ];
+
+        let liveFeedHistory = [...liveWirePool];
+
+        const articlesData = [
+            {
+                id: 1,
+                title: "The Gridlock of Climate Legislation: Why Bipartisan Consensus Remains Elusive",
+                category: "Legislation",
+                author: "Dr. Elena Rostova",
+                date: "Oct 12, 2026",
+                readTime: "7 min read",
+                bias: "Scientific Consensus",
+                biasClass: "bg-teal-500/10 text-teal-600 dark:text-teal-400 border-teal-500/20",
+                keyTakeaway: "Partisan Gerrymander lines and fossil-fuel lobbying disincentivize moderate lawmakers from voting on long-term climate adaptation.",
+                summary: "An in-depth structural analysis of how Congressional committee assignments and campaign financing models entrench gridlock even as economic damages from extreme weather escalate.",
+                content: `
+                    <p>Despite mounting economic and ecological costs, climate legislation in major industrialized democracies continues to face structural legislative paralysis. While public polling consistently reflects broad consensus on clean energy subsidies, legislative translation remains severely bottlenecked.</p>
+                    <h3 class="font-serif font-bold text-lg text-slate-900 dark:text-white mt-4 mb-2">The Structural Bottlenecks</h3>
+                    <p>Partisan primary systems reward ideological purity over pragmatic compromise. Moderate lawmakers who cross aisle lines to support carbon pricing or grid modernization frequently face primary challenges funded by ideological interest groups.</p>
+                    <blockquote class="p-4 my-4 bg-slate-100 dark:bg-slate-800/60 border-l-4 border-emerald-500 italic text-slate-800 dark:text-slate-200">
+                        "Climate policy has transitioned from a technical economic problem to an identity marker. Voting for a rival party's bill is increasingly viewed as cultural betrayal."
+                    </blockquote>
+                    <p>Furthermore, regional economic interests transcend pure party affiliation. Lawmakers from energy-producing states—regardless of political party—consistently unite to dilute or delay aggressive fossil-fuel phaseouts.</p>
+                    <h3 class="font-serif font-bold text-lg text-slate-900 dark:text-white mt-4 mb-2">Paths Toward Legislative Traction</h3>
+                    <p>To overcome this impasse, policy strategists are increasingly pivoting away from top-down mandates toward economic industrial policy. By framing climate investments through the lens of national security, supply chain resilience, and job creation, cross-party alliances are slowly demonstrating viability.</p>
+                `
+            },
+            {
+                id: 2,
+                title: "Media Framing: How Partisan Outlets Cover Extreme Weather Events",
+                category: "Media",
+                author: "Marcus Vance",
+                date: "Oct 10, 2026",
+                readTime: "5 min read",
+                bias: "Media Bias Audit",
+                biasClass: "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20",
+                keyTakeaway: "News framing dictates whether audiences view natural disasters as global systemic crises or localized infrastructure failures.",
+                summary: "Examining 5,000 news broadcasts across major networks reveals stark divergence in disaster reporting language and scientific attribution.",
+                content: `
+                    <p>When extreme meteorological events strike, the framing chosen by newsrooms dictates public perception and subsequent policy demands. A comprehensive content analysis of major cable networks illustrates a deeply divided reporting ecosystem.</p>
+                    <h3 class="font-serif font-bold text-lg text-slate-900 dark:text-white mt-4 mb-2">Divergent Narrative Frameworks</h3>
+                    <p>Progressive outlets overwhelmingly frame extreme heatwaves and hurricanes around human-caused climate change, demanding immediate carbon regulation. Conversely, conservative-leaning outlets frequently center coverage on municipal emergency response, grid resilience, and the fiscal cost of proposed regulations.</p>
+                    <p>This linguistic bifurcation creates two distinct public realities: one focused on systemic global abatement, the other focused on immediate localized adaptation and economic preservation.</p>
+                `
+            },
+            {
+                id: 3,
+                title: "Carbon Tax Economics Across Liberal and Conservative Spectrums",
+                category: "Economics",
+                author: "Prof. Arthur Pendelton",
+                date: "Oct 08, 2026",
+                readTime: "9 min read",
+                bias: "Economic Policy",
+                biasClass: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20",
+                keyTakeaway: "Revenue-neutral carbon dividends provide a theoretical bridge between free-market economic theory and progressive climate goals.",
+                summary: "Why conservative economists once championed market-based carbon pricing, and how political polarization displaced it with tax credits.",
+                content: `
+                    <p>Market-based carbon pricing was originally designed by conservative economists as an efficient alternative to heavy-handed government regulation. By placing a price signal on carbon pollution, market forces naturally incentivize clean innovation.</p>
+                    <h3 class="font-serif font-bold text-lg text-slate-900 dark:text-white mt-4 mb-2">The Shift to Subsidies</h3>
+                    <p>However, as tax opposition hardened into party doctrine, carbon taxes became politically untenable. In response, policymakers shifted from 'sticks' (taxes) to 'carrots' (tax credits and industrial subsidies), leading to current federal spending frameworks.</p>
+                `
+            },
+            {
+                id: 4,
+                title: "Youth Activism vs Political Realpolitik: The Generational Shift",
+                category: "Activism",
+                author: "Sofia Chen",
+                date: "Oct 04, 2026",
+                readTime: "6 min read",
+                bias: "Grassroots Movements",
+                biasClass: "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20",
+                keyTakeaway: "Gen Z and Millennial voters are reshaping partisan boundaries by demanding climate action across conservative and liberal youth organizations.",
+                summary: "Investigating how young voters are prioritizing climate action above traditional party loyalty in key swing districts.",
+                content: `
+                    <p>Across the political spectrum, younger demographics demonstrate significantly higher concern for climate impacts than older cohorts within their respective political parties. This generational alignment is putting pressure on traditional party platforms.</p>
+                    <p>Grassroots climate movements have successfully moved past traditional urban enclaves, organizing in suburban and rural voting districts where energy jobs and conservation intersect.</p>
+                `
+            }
+        ];
+
+        const mapHotspots = [
+            {
+                lat: 38.8951, lng: -77.0364,
+                title: "US Capitol Permitting Gridlock",
+                category: "Policy",
+                desc: "Congressional negotiations stall over environmental review timelines for high-voltage transmission corridors.",
+                articleId: 1
+            },
+            {
+                lat: 50.8503, lng: 4.3517,
+                title: "EU Carbon Border Adjustment Mechanism (CBAM)",
+                category: "Carbon",
+                desc: "Transatlantic trade disputes escalate as Brussels implements carbon tariffs on carbon-intensive imports.",
+                articleId: 3
+            },
+            {
+                lat: -3.4653, lng: -62.2159,
+                title: "Amazon Deforestation Policy & Sovereignty",
+                category: "Policy",
+                desc: "Geopolitical friction between international climate aid pledges and domestic agricultural expansion laws.",
+                articleId: 4
+            },
+            {
+                lat: -35.2809, lng: 149.1300,
+                title: "Australian Clean Energy Mandate Disputes",
+                category: "Protest",
+                desc: "Rural mining communities and urban climate activists clash over offshore wind and coal phaseout timelines.",
+                articleId: 2
+            },
+            {
+                lat: 51.5074, lng: -0.1278,
+                title: "London Financial District Net-Zero Disclosures",
+                category: "Carbon",
+                desc: "Regulatory battles over mandatory Scope 3 emissions reporting for multinational energy conglomerates.",
+                articleId: 3
+            }
+        ];
+
+        // ================= APPLICATION INITIALIZATION =================
+        window.addEventListener('DOMContentLoaded', () => {
+            initCharts();
+            renderLiveFeed();
+            renderArticles();
+            initLeafletMap();
+            startFeedSimulator();
+            setupEventListeners();
+            updateSavedBadge();
+        });
+
+        // ================= NAVIGATION & TAB SWITCHING =================
+        function switchTab(tabId) {
+            state.activeTab = tabId;
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.getElementById(`tab-${tabId}`).classList.remove('hidden');
+
+            // Update Desktop Nav Styling
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.className = 'nav-btn px-4 py-1.5 rounded-lg text-sm font-medium transition-all text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white';
+            });
+            const activeNav = document.getElementById(`nav-${tabId}`);
+            if (activeNav) {
+                activeNav.className = 'nav-btn px-4 py-1.5 rounded-lg text-sm font-medium transition-all text-emerald-600 dark:text-emerald-400 bg-white dark:bg-slate-900 shadow-sm';
+            }
+
+            // Update Mobile Nav Styling
+            document.querySelectorAll('.mobile-nav-btn').forEach(btn => {
+                btn.className = 'mobile-nav-btn py-1.5 px-2 font-medium text-slate-600 dark:text-slate-400';
+            });
+            const mobileActiveNav = document.getElementById(`mobile-nav-${tabId}`);
+            if (mobileActiveNav) {
+                mobileActiveNav.className = 'mobile-nav-btn py-1.5 px-2 font-medium text-emerald-600 dark:text-emerald-400';
+            }
+
+            if (tabId === 'map' && state.leafletMap) {
+                setTimeout(() => { state.leafletMap.invalidateSize(); }, 200);
+            }
+
+            if (tabId === 'saved') {
+                renderSavedArticles();
+            }
+        }
+
+        // ================= LEAFLET MAP INITIALIZATION =================
+        function initLeafletMap() {
+            const mapContainer = document.getElementById('leaflet-map');
+            if (!mapContainer) return;
+
+            state.leafletMap = L.map('leaflet-map', {
+                center: [20, 0],
+                zoom: 2,
+                minZoom: 2,
+                maxZoom: 10
+            });
+
+            // CartoDB Positron Tiles (Reliable, fast, free, clean vector style)
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+                subdomains: 'abcd',
+                maxZoom: 19
+            }).addTo(state.leafletMap);
+
+            state.mapMarkersLayer = L.layerGroup().addTo(state.leafletMap);
+            renderMapMarkers('all');
+        }
+
+        function renderMapMarkers(filterCategory) {
+            if (!state.mapMarkersLayer) return;
+            state.mapMarkersLayer.clearLayers();
+
+            const filtered = filterCategory === 'all' 
+                ? mapHotspots 
+                : mapHotspots.filter(h => h.category === filterCategory);
+
+            filtered.forEach(hotspot => {
+                const marker = L.circleMarker([hotspot.lat, hotspot.lng], {
+                    radius: 8,
+                    fillColor: hotspot.category === 'Policy' ? '#f59e0b' : hotspot.category === 'Carbon' ? '#10b981' : '#ef4444',
+                    color: '#ffffff',
+                    weight: 2,
+                    opacity: 1,
+                    fillOpacity: 0.9
+                });
+
+                marker.on('click', () => {
+                    document.getElementById('map-sidebar-title').textContent = hotspot.title;
+                    document.getElementById('map-sidebar-desc').textContent = hotspot.desc;
+                    const actionDiv = document.getElementById('map-sidebar-action');
+                    actionDiv.classList.remove('hidden');
+                    document.getElementById('map-sidebar-btn').onclick = () => {
+                        openArticleReader(hotspot.articleId);
+                    };
+                });
+
+                state.mapMarkersLayer.addLayer(marker);
+            });
+        }
+
+        function filterMapMarkers(cat) {
+            renderMapMarkers(cat);
+        }
+
+        // ================= LIVE TICKER & FEED SIMULATOR =================
+        function startFeedSimulator() {
+            state.feedIntervalId = setInterval(() => {
+                if (!state.feedPaused) {
+                    injectNewFeedItem();
+                }
+            }, state.feedIntervalTime);
+        }
+
+        function injectNewFeedItem() {
+            const randomSample = [
+                {
+                    id: 'feed-' + Date.now(),
+                    category: 'Political Debates',
+                    title: 'Bipartisan Senate caucus announces revised offshore wind permitting guidelines',
+                    source: 'Capitol Wire',
+                    bias: 'Bipartisan',
+                    timestamp: 'Just now',
+                    summary: 'Draft compromise aims to accelerate environmental reviews while maintaining coastal fishery protections.',
+                    content: '<p>Senate negotiators released a framework for offshore wind leasing reform designed to streamline approvals while safeguarding commercial fishing routes. The proposal has received guarded praise from moderate lawmakers in both parties.</p>'
+                },
+                {
+                    id: 'feed-' + Date.now(),
+                    category: 'Policy & Legislation',
+                    title: 'Treasury releases new Guidance on IRA Clean Technology Manufacturing Credits',
+                    source: 'Federal Register',
+                    bias: 'Government Bureau',
+                    timestamp: 'Just now',
+                    summary: 'Updated guidelines clarify domestic content requirements for battery supply chains.',
+                    content: '<p>The Treasury Department issued updated directives regarding domestic mineral sourcing for advanced battery manufacturing tax credits under the Inflation Reduction Act, aiming to incentivize domestic mining investment.</p>'
+                },
+                {
+                    id: 'feed-' + Date.now(),
+                    category: 'Media Framing',
+                    title: 'Study: Local news coverage of climate hazards focuses 70% on fiscal recovery costs',
+                    source: 'Journalism Review',
+                    bias: 'Academic Research',
+                    timestamp: 'Just now',
+                    summary: 'Local reporting prioritizes municipal bond ratings and tax impacts over scientific policy debates.',
+                    content: '<p>An academic audit of local broadcast affiliates demonstrates that extreme weather reporting overwhelmingly frames events through the lens of municipal insurance premiums, disaster relief funding, and taxpayer burdens rather than global atmospheric metrics.</p>'
+                }
+            ];
+
+            const newItem = randomSample[Math.floor(Math.random() * randomSample.length)];
+            liveFeedHistory.unshift(newItem);
+            
+            if (liveFeedHistory.length > 20) liveFeedHistory.pop();
+
+            const tickerText = document.getElementById('live-ticker-text');
+            if (tickerText) {
+                tickerText.style.opacity = '0';
+                setTimeout(() => {
+                    tickerText.textContent = `BREAKING: ${newItem.title} (${newItem.source})`;
+                    tickerText.style.opacity = '1';
+                }, 300);
+            }
+
+            renderLiveFeed();
+        }
+
+        function renderLiveFeed() {
+            const container = document.getElementById('live-feed-container');
+            if (!container) return;
+
+            let filtered = liveFeedHistory;
+            if (state.activeFeedFilter !== 'All') {
+                filtered = liveFeedHistory.filter(item => item.category === state.activeFeedFilter);
+            }
+
+            if (state.searchQuery) {
+                const q = state.searchQuery.toLowerCase();
+                filtered = filtered.filter(item => item.title.toLowerCase().includes(q) || item.summary.toLowerCase().includes(q));
+            }
+
+            if (filtered.length === 0) {
+                container.innerHTML = `
+                    <div class="bg-white dark:bg-slate-900 p-8 rounded-xl border border-slate-200 dark:border-slate-800 text-center text-slate-500">
+                        <i class="fa-solid fa-newspaper text-3xl mb-2 text-slate-400"></i>
+                        <p class="text-sm font-medium">No intelligence updates match the selected filter.</p>
+                    </div>`;
+                return;
+            }
+
+            container.innerHTML = filtered.map((item, idx) => `
+                <div class="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm transition hover:border-emerald-500/50 ${idx === 0 ? 'border-l-4 border-l-emerald-500' : ''}">
+                    <div class="flex items-center justify-between text-xs mb-1.5">
+                        <div class="flex items-center gap-2">
+                            <span class="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold px-2 py-0.5 rounded text-[10px] uppercase">${item.category}</span>
+                            <span class="text-slate-400 font-medium">${item.source}</span>
+                        </div>
+                        <span class="text-slate-400 font-mono text-[11px]">${item.timestamp}</span>
+                    </div>
+                    <h4 class="font-serif font-bold text-base text-slate-900 dark:text-white hover:text-emerald-500 transition cursor-pointer" onclick="openTickerItemModal('${item.id}')">${item.title}</h4>
+                    <p class="text-xs text-slate-600 dark:text-slate-400 mt-1.5 leading-relaxed">${item.summary}</p>
+                    <div class="flex items-center justify-between mt-3 pt-2 border-t border-slate-100 dark:border-slate-800/60 text-[11px]">
+                        <span class="text-slate-500"><i class="fa-solid fa-scale-balanced text-amber-500 mr-1"></i> Policy Lens: <strong class="text-slate-700 dark:text-slate-300">${item.bias}</strong></span>
+                        <div class="flex items-center gap-3">
+                            <button onclick="openTickerItemModal('${item.id}')" class="text-emerald-600 dark:text-emerald-400 font-semibold hover:underline">Read Wire →</button>
+                            <button onclick="shareItem('${item.title}')" class="text-slate-400 hover:text-emerald-500 transition"><i class="fa-solid fa-share-nodes"></i></button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function filterFeed(category) {
+            state.activeFeedFilter = category;
+            document.querySelectorAll('.feed-filter-btn').forEach(btn => {
+                if (btn.textContent.trim() === category || (category === 'Policy & Legislation' && btn.textContent.trim() === 'Policy') || (category === 'Political Debates' && btn.textContent.trim() === 'Debates') || (category === 'Media Framing' && btn.textContent.trim() === 'Media') || (category === 'Global Diplomacy' && btn.textContent.trim() === 'Diplomacy')) {
+                    btn.className = 'feed-filter-btn px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-500 text-slate-950 transition';
+                } else {
+                    btn.className = 'feed-filter-btn px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition';
+                }
+            });
+            renderLiveFeed();
+        }
+
+        function openTickerArticle() {
+            if (liveFeedHistory.length > 0) {
+                openTickerItemModal(liveFeedHistory[0].id);
+            }
+        }
+
+        function openTickerItemModal(itemId) {
+            const item = liveFeedHistory.find(i => i.id === itemId);
+            if (!item) return;
+
+            // Map ticker wire item to reader modal
+            state.currentReadingArticleId = null;
+            document.getElementById('reader-category').textContent = item.category;
+            document.getElementById('reader-bias').textContent = item.bias;
+            document.getElementById('reader-bias').className = `text-xs font-bold px-2.5 py-0.5 rounded-full border bg-emerald-500/10 text-emerald-600 border-emerald-500/20`;
+            document.getElementById('reader-readtime').innerHTML = `<i class="fa-regular fa-clock mr-1"></i> 3 min wire read`;
+            document.getElementById('reader-title').textContent = item.title;
+            document.getElementById('reader-author').textContent = item.source;
+            document.getElementById('reader-date').textContent = item.timestamp;
+            document.getElementById('reader-key-takeaway').textContent = item.summary;
+            document.getElementById('reader-body').innerHTML = item.content || `<p>${item.summary}</p><p>Real-time breaking intelligence wire feed authenticated via ClimatePol telemetry network.</p>`;
+
+            document.getElementById('reader-bookmark-btn').innerHTML = `<i class="fa-regular fa-bookmark text-base"></i>`;
+            openModal('article-reader-modal');
+        }
+
+        // ================= ARTICLES & READER LOGIC =================
+        function renderArticles() {
+            const container = document.getElementById('articles-grid');
+            if (!container) return;
+
+            let filtered = articlesData;
+            if (state.activeArticleFilter !== 'All') {
+                filtered = filtered.filter(a => a.category === state.activeArticleFilter);
+            }
+
+            if (state.searchQuery) {
+                const q = state.searchQuery.toLowerCase();
+                filtered = filtered.filter(a => a.title.toLowerCase().includes(q) || a.summary.toLowerCase().includes(q));
+            }
+
+            container.innerHTML = filtered.map(art => {
+                const isSaved = state.savedArticleIds.has(art.id);
+                return `
+                    <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm hover:shadow-md transition flex flex-col justify-between">
+                        <div class="p-5 space-y-3 cursor-pointer" onclick="openArticleReader(${art.id})">
+                            <div class="flex items-center justify-between text-xs">
+                                <span class="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold px-2.5 py-0.5 rounded">${art.category}</span>
+                                <span class="text-xs ${art.biasClass} font-semibold px-2 py-0.5 rounded border">${art.bias}</span>
+                            </div>
+                            <h3 class="font-serif font-bold text-lg text-slate-900 dark:text-white leading-snug hover:text-emerald-500 transition">${art.title}</h3>
+                            <p class="text-xs text-slate-600 dark:text-slate-400 line-clamp-3 leading-relaxed">${art.summary}</p>
+                        </div>
+                        <div class="p-5 pt-0 border-t border-slate-100 dark:border-slate-800/60 mt-auto flex items-center justify-between text-xs text-slate-500">
+                            <span>${art.readTime} • ${art.author}</span>
+                            <div class="flex items-center gap-2">
+                                <button onclick="toggleBookmark(${art.id}); event.stopPropagation();" class="p-1.5 text-slate-400 hover:text-emerald-500 transition" title="Save Article">
+                                    <i class="${isSaved ? 'fa-solid text-emerald-500' : 'fa-regular'} fa-bookmark"></i>
+                                </button>
+                                <button onclick="openArticleReader(${art.id})" class="text-emerald-600 dark:text-emerald-400 font-semibold hover:underline">Read Article →</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function filterArticles(category) {
+            state.activeArticleFilter = category;
+            document.querySelectorAll('.art-filter-btn').forEach(btn => {
+                if (btn.textContent.trim().startsWith(category)) {
+                    btn.className = 'art-filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-500 text-slate-950 transition';
+                } else {
+                    btn.className = 'art-filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition';
+                }
+            });
+            renderArticles();
+        }
+
+        function openArticleReader(articleId) {
+            const article = articlesData.find(a => a.id === articleId);
+            if (!article) return;
+
+            state.currentReadingArticleId = articleId;
+            document.getElementById('reader-category').textContent = article.category;
+            document.getElementById('reader-bias').textContent = article.bias;
+            document.getElementById('reader-bias').className = `text-xs font-bold px-2.5 py-0.5 rounded-full border ${article.biasClass}`;
+            document.getElementById('reader-readtime').innerHTML = `<i class="fa-regular fa-clock mr-1"></i> ${article.readTime}`;
+            document.getElementById('reader-title').textContent = article.title;
+            document.getElementById('reader-author').textContent = article.author;
+            document.getElementById('reader-date').textContent = article.date;
+            document.getElementById('reader-key-takeaway').textContent = article.keyTakeaway;
+            document.getElementById('reader-body').innerHTML = article.content;
+
+            const isSaved = state.savedArticleIds.has(articleId);
+            const bmBtn = document.getElementById('reader-bookmark-btn');
+            bmBtn.innerHTML = `<i class="${isSaved ? 'fa-solid text-emerald-500' : 'fa-regular'} fa-bookmark text-base"></i>`;
+
+            openModal('article-reader-modal');
+        }
+
+        function setReaderTheme(theme) {
+            const box = document.getElementById('reader-container-box');
+            if (theme === 'light') {
+                box.className = 'bg-white text-slate-900 border border-slate-200 rounded-2xl max-w-4xl w-full my-auto shadow-2xl overflow-hidden flex flex-col max-h-[92vh] transition-colors';
+            } else if (theme === 'sepia') {
+                box.className = 'bg-[#fbf0d9] text-[#5f4b32] border border-[#e6d5b8] rounded-2xl max-w-4xl w-full my-auto shadow-2xl overflow-hidden flex flex-col max-h-[92vh] transition-colors';
+            } else if (theme === 'dark') {
+                box.className = 'bg-slate-900 text-slate-100 border border-slate-800 rounded-2xl max-w-4xl w-full my-auto shadow-2xl overflow-hidden flex flex-col max-h-[92vh] transition-colors';
+            }
+        }
+
+        let currentReaderFontSize = 16;
+        function adjustReaderFont(delta) {
+            currentReaderFontSize = Math.max(13, Math.min(22, currentReaderFontSize + delta));
+            document.getElementById('reader-body').style.fontSize = currentReaderFontSize + 'px';
+        }
+
+        function printReaderArticle() {
+            window.print();
+        }
+
+        function toggleBookmark(articleId) {
+            if (state.savedArticleIds.has(articleId)) {
+                state.savedArticleIds.delete(articleId);
+            } else {
+                state.savedArticleIds.add(articleId);
+            }
+            updateSavedBadge();
+            renderArticles();
+            if (state.activeTab === 'saved') renderSavedArticles();
+        }
+
+        function toggleBookmarkCurrent() {
+            if (state.currentReadingArticleId) {
+                toggleBookmark(state.currentReadingArticleId);
+                const isSaved = state.savedArticleIds.has(state.currentReadingArticleId);
+                const bmBtn = document.getElementById('reader-bookmark-btn');
+                bmBtn.innerHTML = `<i class="${isSaved ? 'fa-solid text-emerald-500' : 'fa-regular'} fa-bookmark text-base"></i>`;
+            }
+        }
+
+        function updateSavedBadge() {
+            const badge = document.getElementById('saved-count-badge');
+            if (!badge) return;
+            const count = state.savedArticleIds.size;
+            badge.textContent = count;
+            if (count > 0) badge.classList.remove('hidden');
+            else badge.classList.add('hidden');
+        }
+
+        function renderSavedArticles() {
+            const container = document.getElementById('saved-articles-container');
+            if (!container) return;
+
+            const saved = articlesData.filter(a => state.savedArticleIds.has(a.id));
+
+            if (saved.length === 0) {
+                container.innerHTML = `
+                    <div class="col-span-full bg-white dark:bg-slate-900 p-12 rounded-xl border border-slate-200 dark:border-slate-800 text-center text-slate-500 space-y-3">
+                        <i class="fa-solid fa-bookmark text-4xl text-slate-400"></i>
+                        <h3 class="font-serif font-bold text-lg text-slate-800 dark:text-slate-200">No Saved Articles</h3>
+                        <p class="text-xs max-w-sm mx-auto">Explore the Articles library and click the bookmark icon to save long-form analyses here.</p>
+                        <button onclick="switchTab('library')" class="px-4 py-2 bg-emerald-600 text-white rounded-lg text-xs font-semibold hover:bg-emerald-500 transition">Browse Articles</button>
+                    </div>`;
+                return;
+            }
+
+            container.innerHTML = saved.map(art => `
+                <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm p-5 space-y-3 flex flex-col justify-between">
+                    <div>
+                        <span class="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold px-2 py-0.5 rounded">${art.category}</span>
+                        <h3 class="font-serif font-bold text-base text-slate-900 dark:text-white mt-2 hover:text-emerald-500 transition cursor-pointer" onclick="openArticleReader(${art.id})">${art.title}</h3>
+                        <p class="text-xs text-slate-500 mt-2 line-clamp-2">${art.summary}</p>
+                    </div>
+                    <div class="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800 text-xs">
+                        <button onclick="toggleBookmark(${art.id})" class="text-rose-500 font-medium hover:underline"><i class="fa-solid fa-trash mr-1"></i> Remove</button>
+                        <button onclick="openArticleReader(${art.id})" class="text-emerald-500 font-semibold hover:underline">Read Now →</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // ================= COMMUNITY POLL LOGIC =================
+        function votePoll(option) {
+            if (state.userVoted) return;
+
+            state.pollVotes[option]++;
+            state.userVoted = true;
+
+            const total = state.pollVotes.yes + state.pollVotes.no + state.pollVotes.undecided;
+            const yesPct = Math.round((state.pollVotes.yes / total) * 100);
+            const noPct = Math.round((state.pollVotes.no / total) * 100);
+            const undPct = 100 - yesPct - noPct;
+
+            document.getElementById('poll-count-yes').textContent = yesPct + '%';
+            document.getElementById('poll-count-no').textContent = noPct + '%';
+            document.getElementById('poll-count-undecided').textContent = undPct + '%';
+
+            document.getElementById('poll-voted-msg').classList.remove('hidden');
+        }
+
+        // ================= CHART.JS ANALYTICS INITIALIZATION =================
+        function initCharts() {
+            const ctx1 = document.getElementById('chart-partisan')?.getContext('2d');
+            if (ctx1) {
+                new Chart(ctx1, {
+                    type: 'line',
+                    data: {
+                        labels: ['2018', '2020', '2022', '2024', '2026'],
+                        datasets: [
+                            {
+                                label: 'Democrat Support (%)',
+                                data: [82, 86, 89, 87, 91],
+                                borderColor: '#3b82f6',
+                                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                                fill: true,
+                                tension: 0.3
+                            },
+                            {
+                                label: 'Independent Support (%)',
+                                data: [52, 55, 58, 61, 64],
+                                borderColor: '#10b981',
+                                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                                fill: true,
+                                tension: 0.3
+                            },
+                            {
+                                label: 'Republican Support (%)',
+                                data: [28, 24, 29, 31, 38],
+                                borderColor: '#ef4444',
+                                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                                fill: true,
+                                tension: 0.3
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { labels: { color: '#94a3b8', font: { family: 'Inter', size: 11 } } }
+                        },
+                        scales: {
+                            x: { grid: { color: 'rgba(148, 163, 184, 0.1)' }, ticks: { color: '#94a3b8' } },
+                            y: { grid: { color: 'rgba(148, 163, 184, 0.1)' }, ticks: { color: '#94a3b8' }, min: 0, max: 100 }
+                        }
+                    }
+                });
+            }
+
+            const ctx2 = document.getElementById('chart-media')?.getContext('2d');
+            if (ctx2) {
+                new Chart(ctx2, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Economic Cost', 'Climate Risk', 'Tech Innovation', 'National Security', 'Partisan Conflict'],
+                        datasets: [{
+                            label: 'Coverage Frequency Ratio',
+                            data: [78, 85, 62, 45, 92],
+                            backgroundColor: [
+                                'rgba(245, 158, 11, 0.7)',
+                                'rgba(16, 185, 129, 0.7)',
+                                'rgba(6, 182, 212, 0.7)',
+                                'rgba(99, 102, 241, 0.7)',
+                                'rgba(239, 68, 68, 0.7)'
+                            ],
+                            borderRadius: 6
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            x: { grid: { display: false }, ticks: { color: '#94a3b8' } },
+                            y: { grid: { color: 'rgba(148, 163, 184, 0.1)' }, ticks: { color: '#94a3b8' } }
+                        }
+                    }
+                });
+            }
+
+            const ctx3 = document.getElementById('chart-global')?.getContext('2d');
+            if (ctx3) {
+                new Chart(ctx3, {
+                    type: 'bar',
+                    data: {
+                        labels: ['EU Bloc', 'United States', 'United Kingdom', 'China', 'Japan', 'India'],
+                        datasets: [
+                            {
+                                label: 'Pledged Reduction Target (2030 %)',
+                                data: [55, 50, 68, 30, 46, 33],
+                                backgroundColor: 'rgba(16, 185, 129, 0.8)'
+                            },
+                            {
+                                label: 'Enacted Statutory Realization (%)',
+                                data: [42, 34, 51, 28, 36, 25],
+                                backgroundColor: 'rgba(245, 158, 11, 0.8)'
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { labels: { color: '#94a3b8', font: { family: 'Inter', size: 11 } } }
+                        },
+                        scales: {
+                            x: { grid: { display: false }, ticks: { color: '#94a3b8' } },
+                            y: { grid: { color: 'rgba(148, 163, 184, 0.1)' }, ticks: { color: '#94a3b8' } }
+                        }
+                    }
+                });
+            }
+        }
+
+        // ================= EVENT LISTENERS & MODAL HANDLERS =================
+        function setupEventListeners() {
+            const themeBtn = document.getElementById('theme-toggle');
+            themeBtn.addEventListener('click', () => {
+                document.documentElement.classList.toggle('dark');
+            });
+
+            const toggleFeedBtn = document.getElementById('toggle-feed-btn');
+            toggleFeedBtn.addEventListener('click', () => {
+                state.feedPaused = !state.feedPaused;
+                toggleFeedBtn.innerHTML = state.feedPaused ? '<i class="fa-solid fa-play"></i>' : '<i class="fa-solid fa-pause"></i>';
+                toggleFeedBtn.title = state.feedPaused ? 'Resume Feed' : 'Pause Feed';
+            });
+
+            document.getElementById('refresh-feed-btn').addEventListener('click', () => {
+                injectNewFeedItem();
+            });
+
+            const speedSlider = document.getElementById('speed-slider');
+            speedSlider.addEventListener('input', (e) => {
+                const sec = e.target.value;
+                document.getElementById('speed-label').textContent = `${sec}s interval`;
+                state.feedIntervalTime = sec * 1000;
+                clearInterval(state.feedIntervalId);
+                startFeedSimulator();
+            });
+
+            const searchInput = document.getElementById('global-search');
+            searchInput.addEventListener('input', (e) => {
+                state.searchQuery = e.target.value;
+                renderLiveFeed();
+                renderArticles();
+            });
+        }
+
+        function openModal(id) {
+            document.getElementById(id).classList.remove('hidden');
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.add('hidden');
+        }
+
+        function handleFormSubmit(e) {
+            e.preventDefault();
+            const form = e.target;
+            const title = form.elements[0].value;
+            const category = form.elements[1].value;
+            const bias = form.elements[2].value;
+            const summary = form.elements[3].value;
+            const content = form.elements[4].value;
+
+            const newArticle = {
+                id: Date.now(),
+                title: title,
+                category: category,
+                author: "Community Contributor",
+                date: "Just now",
+                readTime: "4 min read",
+                bias: bias,
+                biasClass: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
+                keyTakeaway: summary,
+                summary: summary,
+                content: `<p>${content}</p>`
+            };
+
+            articlesData.unshift(newArticle);
+            renderArticles();
+            closeModal('submit-modal');
+            form.reset();
+            alert('Your analysis has been successfully published to the portal library!');
+        }
+
+        function shareItem(title) {
+            const dummy = document.createElement('input');
+            document.body.appendChild(dummy);
+            dummy.value = window.location.href + '#' + encodeURIComponent(title);
+            dummy.select();
+            document.execCommand('copy');
+            document.body.removeChild(dummy);
+            alert(`Link copied to clipboard for: "${title}"`);
+        }
+    </script>
+</body>
+</html>
